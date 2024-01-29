@@ -29,7 +29,6 @@ export async function run(): Promise<void> {
     // if using a custom path, make sure the path exists
     if (path !== DEFAULT_PATH) {
       core.debug(`path is not default, creating dirs to path: ${path}`)
-      core.debug(`__dirname: ${__dirname}`)
       fs.mkdir(path, { recursive: true }, err => {
         if (err) throw err
       })
