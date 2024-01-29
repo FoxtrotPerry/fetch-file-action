@@ -1,89 +1,193 @@
-/**
- * Unit tests for the action's main functionality, src/main.ts
- *
- * These should be run as if the action was called from a workflow.
- * Specifically, the inputs listed in `action.yml` should be set as environment
- * variables following the pattern `INPUT_<INPUT_NAME>`.
- */
-
-import * as core from '@actions/core'
+import {
+  describe,
+  expect,
+  vi,
+  type MockInstance,
+  beforeEach,
+  afterAll,
+  it
+} from 'vitest'
 import * as main from '../src/main'
+import * as core from '@actions/core'
+import { unlink as unlinkAsync, rmdir as rmdirAsync } from 'fs/promises'
+import { join, format } from 'path'
 
-// Mock the action's main function
-const runMock = jest.spyOn(main, 'run')
+const PDF_URL =
+  'https://file-examples.com/storage/fed61549c865b2b5c9768b5/2017/10/file-sample_150kB.pdf'
+const PDF_FILE_NAME = 'custom_pdf.pdf'
 
-// Other utilities
-const timeRegex = /^\d{2}:\d{2}:\d{2}/
+const MP4_URL =
+  'https://file-examples.com/storage/fed61549c865b2b5c9768b5/2017/04/file_example_MP4_480_1_5MG.mp4'
+const MP4_FILE_NAME = 'custom_mp4.mp4'
 
-// Mock the GitHub Actions core library
-let debugMock: jest.SpyInstance
-let errorMock: jest.SpyInstance
-let getInputMock: jest.SpyInstance
-let setFailedMock: jest.SpyInstance
-let setOutputMock: jest.SpyInstance
+const XLSX_URL =
+  'https://file-examples.com/storage/fed61549c865b2b5c9768b5/2017/02/file_example_XLSX_10.xlsx'
+const XLSX_FILE_NAME = 'custom_xlsx.xlsx'
 
-describe('action', () => {
+const CUSTOM_ROOT = './custom'
+const CUSTOM_PATH = join(CUSTOM_ROOT, '/path')
+
+const runMock = vi.spyOn(main, 'run')
+
+let infoMock: MockInstance
+let debugMock: MockInstance
+let errorMock: MockInstance
+let getInputMock: MockInstance
+let setFailedMock: MockInstance
+let setOutputMock: MockInstance
+
+describe('fetch-file-action', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
 
-    debugMock = jest.spyOn(core, 'debug').mockImplementation()
-    errorMock = jest.spyOn(core, 'error').mockImplementation()
-    getInputMock = jest.spyOn(core, 'getInput').mockImplementation()
-    setFailedMock = jest.spyOn(core, 'setFailed').mockImplementation()
-    setOutputMock = jest.spyOn(core, 'setOutput').mockImplementation()
+    infoMock = vi.spyOn(core, 'info').mockImplementation((str: string) => {
+      console.log(`[INFO]: ${str}`)
+    })
+    debugMock = vi.spyOn(core, 'debug').mockImplementation((str: string) => {
+      console.log(`[DEBUG]: ${str}`)
+    })
+    errorMock = vi.spyOn(core, 'error')
+    getInputMock = vi.spyOn(core, 'getInput')
+    setFailedMock = vi.spyOn(core, 'setFailed')
+    setOutputMock = vi.spyOn(core, 'setOutput')
   })
 
-  it('sets the time output', async () => {
-    // Set the action's inputs as return values from core.getInput()
-    getInputMock.mockImplementation((name: string): string => {
+  afterAll(async () => {
+    vi.clearAllMocks()
+    // remove downloaded files
+    await Promise.all([
+      unlinkAsync(PDF_FILE_NAME),
+      unlinkAsync(MP4_FILE_NAME),
+      unlinkAsync(XLSX_FILE_NAME),
+      unlinkAsync(
+        format({
+          dir: CUSTOM_PATH,
+          base: PDF_FILE_NAME
+        })
+      )
+    ])
+    // remove custom path
+    rmdirAsync(CUSTOM_PATH)
+    rmdirAsync(CUSTOM_ROOT)
+  })
+
+  /**
+   * PASS CASES
+   */
+
+  it('downloads .pdf successfully', async () => {
+    getInputMock.mockImplementation((name: string) => {
       switch (name) {
-        case 'milliseconds':
-          return '500'
+        case 'url':
+          return PDF_URL
+        case 'filename':
+          return PDF_FILE_NAME
+        case 'path':
+          return main.DEFAULT_PATH
         default:
           return ''
       }
     })
-
     await main.run()
     expect(runMock).toHaveReturned()
-
-    // Verify that all of the core library functions were called correctly
-    expect(debugMock).toHaveBeenNthCalledWith(1, 'Waiting 500 milliseconds ...')
-    expect(debugMock).toHaveBeenNthCalledWith(
-      2,
-      expect.stringMatching(timeRegex)
-    )
-    expect(debugMock).toHaveBeenNthCalledWith(
-      3,
-      expect.stringMatching(timeRegex)
-    )
-    expect(setOutputMock).toHaveBeenNthCalledWith(
-      1,
-      'time',
-      expect.stringMatching(timeRegex)
-    )
-    expect(errorMock).not.toHaveBeenCalled()
+    expect(setFailedMock).not.toHaveBeenCalled()
+    expect(setOutputMock).toHaveBeenCalledWith('success', true)
   })
 
-  it('sets a failed status', async () => {
-    // Set the action's inputs as return values from core.getInput()
-    getInputMock.mockImplementation((name: string): string => {
+  it('downloads .mp4 successfully', async () => {
+    getInputMock.mockImplementation((name: string) => {
       switch (name) {
-        case 'milliseconds':
-          return 'this is not a number'
+        case 'url':
+          return MP4_URL
+        case 'filename':
+          return MP4_FILE_NAME
+        case 'path':
+          return main.DEFAULT_PATH
         default:
           return ''
       }
     })
-
     await main.run()
     expect(runMock).toHaveReturned()
+    expect(setFailedMock).not.toHaveBeenCalled()
+    expect(setOutputMock).toHaveBeenCalledWith('success', true)
+  })
 
-    // Verify that all of the core library functions were called correctly
-    expect(setFailedMock).toHaveBeenNthCalledWith(
-      1,
-      'milliseconds not a number'
-    )
-    expect(errorMock).not.toHaveBeenCalled()
+  it('downloads .xlsx successfully', async () => {
+    getInputMock.mockImplementation((name: string) => {
+      switch (name) {
+        case 'url':
+          return XLSX_URL
+        case 'filename':
+          return XLSX_FILE_NAME
+        case 'path':
+          return main.DEFAULT_PATH
+        default:
+          return ''
+      }
+    })
+    await main.run()
+    expect(runMock).toHaveReturned()
+    expect(setFailedMock).not.toHaveBeenCalled()
+    expect(setOutputMock).toHaveBeenCalledWith('success', true)
+  })
+
+  it('downloads file to custom path successfully', async () => {
+    getInputMock.mockImplementation((name: string) => {
+      switch (name) {
+        case 'url':
+          return PDF_URL
+        case 'filename':
+          return PDF_FILE_NAME
+        case 'path':
+          return CUSTOM_PATH
+        default:
+          return ''
+      }
+    })
+    await main.run()
+    expect(runMock).toHaveReturned()
+    expect(setFailedMock).not.toHaveBeenCalled()
+    expect(setOutputMock).toHaveBeenCalledWith('success', true)
+  })
+
+  /**
+   * FAIL CASES
+   */
+
+  it('fails if url is not provided', async () => {
+    getInputMock.mockImplementation((name: string) => {
+      switch (name) {
+        case 'url':
+          return ''
+        case 'filename':
+          return 'file.pdf'
+        case 'path':
+          return main.DEFAULT_PATH
+        default:
+          return ''
+      }
+    })
+    await main.run()
+    expect(runMock).toHaveReturned()
+    expect(setFailedMock).toHaveBeenCalledWith(main.URL_ERROR_MSG)
+  })
+
+  it('fails if filename is not provided', async () => {
+    getInputMock.mockImplementation((name: string) => {
+      switch (name) {
+        case 'url':
+          return PDF_URL
+        case 'filename':
+          return ''
+        case 'path':
+          return main.DEFAULT_PATH
+        default:
+          return ''
+      }
+    })
+    await main.run()
+    expect(runMock).toHaveReturned()
+    expect(setFailedMock).toHaveBeenCalledWith(main.FILE_NAME_ERROR_MSG)
   })
 })
