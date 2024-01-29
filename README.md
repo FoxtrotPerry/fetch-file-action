@@ -1,6 +1,7 @@
 # fetch-file-action
 
-This action fetches a file from a specified URL and saves it to the action's file system.
+This action fetches a file from a specified URL and saves it to
+the action runner's file system.
 
 ## Inputs
 
