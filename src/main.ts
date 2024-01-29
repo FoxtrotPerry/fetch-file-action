@@ -1,5 +1,12 @@
 import * as core from '@actions/core'
-import { wait } from './wait'
+// import fetch from 'node-fetch';
+import fetch from 'node-fetch'
+import fs from 'fs'
+import { format as formatPath } from 'path'
+
+export const URL_ERROR_MSG = 'url is required'
+export const FILE_NAME_ERROR_MSG = 'filename is required'
+export const DEFAULT_PATH = './'
 
 /**
  * The main function for the action.
@@ -7,18 +14,53 @@ import { wait } from './wait'
  */
 export async function run(): Promise<void> {
   try {
-    const ms: string = core.getInput('milliseconds')
+    // Get inputs
+    const url = core.getInput('url')
+    core.debug(`url: ${url}`)
+    const filename = core.getInput('filename')
+    core.debug(`filename: ${filename}`)
+    const path = core.getInput('path') ?? DEFAULT_PATH
+    core.debug(`path: ${path}`)
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Waiting ${ms} milliseconds ...`)
+    // Validate the  inputs
+    if (!url) throw new Error(URL_ERROR_MSG)
+    if (!filename) throw new Error(FILE_NAME_ERROR_MSG)
 
-    // Log the current timestamp, wait, then log the new timestamp
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
+    // if using a custom path, make sure the path exists
+    if (path !== DEFAULT_PATH) {
+      core.debug(`path is not default, creating dirs to path: ${path}`)
+      core.debug(`__dirname: ${__dirname}`)
+      fs.mkdir(path, { recursive: true }, err => {
+        if (err) throw err
+      })
+    }
 
+    core.info(
+      `Downloading file at url:"${url}" to path:"${path}" as filename:"${filename}" ...`
+    )
+
+    // Fetch the file
+    const response = await fetch(url)
+    core.debug(`response.status: ${response.status}`)
+    if (response.type === 'error')
+      throw new Error(`Failed to download file: ${response.statusText}`)
+    const arrBuffer = await response.arrayBuffer()
+    const fileContents = Buffer.from(arrBuffer)
+    core.info('File fetched ...')
+    // Writing file
+    fs.writeFileSync(
+      formatPath({
+        dir: path,
+        base: filename
+      }),
+      fileContents,
+      {
+        flush: true
+      }
+    )
+    core.info('Writing file ...')
     // Set outputs for other workflow steps to use
-    core.setOutput('time', new Date().toTimeString())
+    core.setOutput('success', true)
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) core.setFailed(error.message)
