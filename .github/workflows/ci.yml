@@ -57,7 +57,7 @@ jobs:
         with:
           url: https://file-examples.com/storage/fed61549c865b2b5c9768b5/2017/10/file-sample_150kB.pdf
           path: ./custom/path
-          name: custom_file_name.pdf
+          filename: custom_file_name.pdf
 
       - name: run ls
         run: ls ./custom/path -la
