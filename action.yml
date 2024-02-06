@@ -7,16 +7,26 @@ branding:
   color: 'blue'
 
 inputs:
+  # Required inputs
   url:
     description: 'URL to fetch the file from'
     required: true
   filename:
     description: 'Name of the file to save'
     required: true
+  # Optional inputs
   path:
     description: 'Path to save the file to'
     required: false
     default: './'
+  overwrite:
+    description: 'Whether to overwrite the file if it already exists'
+    required: false
+    default: 'true'
+  encoding:
+    description: 'Encoding type to use when writing the file'
+    required: false
+    default: 'utf8'
 
 outputs:
   success:
