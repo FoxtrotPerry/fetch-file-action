@@ -5,6 +5,7 @@ env:
 globals:
   Atomics: readonly
   SharedArrayBuffer: readonly
+  BufferEncoding: readonly
 
 ignorePatterns:
   - '!.*'

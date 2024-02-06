@@ -34071,13 +34071,13 @@ var external_fs_default = /*#__PURE__*/__nccwpck_require__.n(external_fs_);
 var external_path_ = __nccwpck_require__(1017);
 ;// CONCATENATED MODULE: ./src/main.ts
 
-// import fetch from 'node-fetch';
 
 
 
 const URL_ERROR_MSG = 'url is required';
 const FILE_NAME_ERROR_MSG = 'filename is required';
 const DEFAULT_PATH = './';
+const DEFAULT_ENCODING = 'utf8';
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
@@ -34085,18 +34085,32 @@ const DEFAULT_PATH = './';
 async function run() {
     try {
         // Get inputs
+        // Required inputs
         const url = core.getInput('url');
         core.debug(`url: ${url}`);
         const filename = core.getInput('filename');
         core.debug(`filename: ${filename}`);
-        const path = core.getInput('path') ?? DEFAULT_PATH;
+        // Optional inputs
+        const path = core.getInput('path', {
+            required: false
+        }) ?? DEFAULT_PATH;
         core.debug(`path: ${path}`);
-        // Validate the  inputs
+        const overwrite = core.getInput('overwrite', {
+            required: false
+        }) === 'false'
+            ? false
+            : true;
+        core.debug(`overwrite: ${overwrite}`);
+        const encoding = (core.getInput('encoding', {
+            required: false
+        }) ?? DEFAULT_ENCODING);
+        core.debug(`encoding: ${encoding}`);
+        // Validate the required inputs
         if (!url)
             throw new Error(URL_ERROR_MSG);
         if (!filename)
             throw new Error(FILE_NAME_ERROR_MSG);
-        // if using a custom path, make sure the path exists
+        // If using a custom path, make sure the path exists
         if (path !== DEFAULT_PATH) {
             core.debug(`path is not default, creating dirs to path: ${path}`);
             external_fs_default().mkdir(path, { recursive: true }, err => {
@@ -34106,28 +34120,35 @@ async function run() {
         }
         core.info(`Downloading file at url:"${url}" to path:"${path}" as filename:"${filename}" ...`);
         // Fetch the file
+        core.info('Fetching file...');
         const response = await fetch(url);
         core.debug(`response.status: ${response.status}`);
         if (response.type === 'error')
             throw new Error(`Failed to download file: ${response.statusText}`);
         const arrBuffer = await response.arrayBuffer();
         const fileContents = Buffer.from(arrBuffer);
-        core.info('File fetched ...');
+        core.info('📄 File fetched.');
         // Writing file
+        core.info('Writing file...');
         external_fs_default().writeFileSync((0,external_path_.format)({
             dir: path,
             base: filename
         }), fileContents, {
-            flush: true
+            flush: true,
+            flag: overwrite ? 'w' : 'wx',
+            encoding
         });
-        core.info('Writing file ...');
+        core.info('💾 File written.');
         // Set outputs for other workflow steps to use
+        core.info('✔ Success!');
         core.setOutput('success', true);
     }
     catch (error) {
         // Fail the workflow run if an error occurs
-        if (error instanceof Error)
+        if (error instanceof Error) {
+            core.setOutput('success', false);
             core.setFailed(error.message);
+        }
     }
 }
 

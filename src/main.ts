@@ -1,5 +1,4 @@
 import * as core from '@actions/core'
-// import fetch from 'node-fetch';
 import fetch from 'node-fetch'
 import fs from 'fs'
 import { format as formatPath } from 'path'
@@ -25,14 +24,18 @@ export async function run(): Promise<void> {
     core.debug(`filename: ${filename}`)
 
     // Optional inputs
-    const path = core.getInput('path', {
-      required: false
-    }) ?? DEFAULT_PATH
+    const path =
+      core.getInput('path', {
+        required: false
+      }) ?? DEFAULT_PATH
     core.debug(`path: ${path}`)
 
-    const overwrite = core.getInput('overwrite', {
-      required: false
-    }) === 'false' ? false : true
+    const overwrite =
+      core.getInput('overwrite', {
+        required: false
+      }) === 'false'
+        ? false
+        : true
     core.debug(`overwrite: ${overwrite}`)
 
     const encoding = (core.getInput('encoding', {
@@ -76,7 +79,7 @@ export async function run(): Promise<void> {
       {
         flush: true,
         flag: overwrite ? 'w' : 'wx',
-        encoding: encoding
+        encoding
       }
     )
     core.info('💾 File written.')
